@@ -132,12 +132,16 @@
                 UX 리서처와 PM을 위한 <strong>카노 모델(Kano Model)</strong> 인터랙티브 가이드입니다. <br>
                 AI와 함께 설문을 설계하고, 데이터에 기반한 제품 로드맵을 그려보세요.
             </p>
+            <!-- [변경됨] 버튼 영역 수정 -->
             <div class="flex flex-col sm:flex-row gap-4 justify-center">
-                <a href="#concept" class="inline-block bg-blue-600 text-white px-8 py-3 rounded-full font-bold hover:bg-blue-700 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-1">
-                    탐험 시작하기
-                </a>
                 <a href="#ai-assistant" class="inline-block bg-white text-blue-600 border border-blue-200 px-8 py-3 rounded-full font-bold hover:bg-blue-50 transition-all shadow-sm hover:shadow-md">
-                    AI 분석 바로가기
+                    AI 가이드 체험하기
+                </a>
+                <a href="kano_analyzer.html" class="inline-block bg-blue-600 text-white px-8 py-3 rounded-full font-bold hover:bg-blue-700 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-1 flex items-center justify-center gap-2">
+                    <span>카노모델 분석해보기</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                    </svg>
                 </a>
             </div>
         </div>
@@ -247,22 +251,22 @@
                     <div class="mb-6 group">
                         <label class="block text-sm font-bold text-blue-700 mb-2">Q1. (긍정) 이 기능이 <span class="underline decoration-wavy">제공된다면</span> 어떠시겠습니까?</label>
                         <select id="functional-select" class="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all cursor-pointer hover:bg-white">
-                            <option value="1">1. 좋다. (Like)</option>
-                            <option value="2">2. 당연하다. (Must-be)</option>
-                            <option value="3" selected>3. 중립이다. (Neutral)</option>
-                            <option value="4">4. 있어도 상관없다. (Live with)</option>
-                            <option value="5">5. 마음에 안 든다. (Dislike)</option>
+                            <option value="1">1. 마음에 든다 (Like)</option>
+                            <option value="2">2. 당연하다 (Must-be)</option>
+                            <option value="3" selected>3. 상관없다 (Neutral)</option>
+                            <option value="4">4. 참을 수 있다 (Live with)</option>
+                            <option value="5">5. 마음에 안 든다 (Dislike)</option>
                         </select>
                     </div>
 
                     <div class="mb-8 group">
                         <label class="block text-sm font-bold text-red-600 mb-2">Q2. (부정) 이 기능이 <span class="underline decoration-wavy">제공되지 않는다면</span> 어떠시겠습니까?</label>
                         <select id="dysfunctional-select" class="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all cursor-pointer hover:bg-white">
-                            <option value="1">1. 없는 게 나을 것 같다. (Like)</option>
-                            <option value="2">2. 당연히 없어도 된다. (Must-be)</option>
-                            <option value="3" selected>3. 중립이다. (Neutral)</option>
-                            <option value="4">4. 아쉽지만 없어도 괜찮다. (Live with)</option>
-                            <option value="5">5. 없으면 안된다. (Dislike)</option>
+                            <option value="1">1. 마음에 든다 (Like)</option>
+                            <option value="2">2. 당연하다 (Must-be)</option>
+                            <option value="3" selected>3. 상관없다 (Neutral)</option>
+                            <option value="4">4. 참을 수 있다 (Live with)</option>
+                            <option value="5">5. 마음에 안 든다 (Dislike)</option>
                         </select>
                     </div>
 
@@ -502,6 +506,12 @@
                 카노 모델은 정지된 상태가 아닙니다. 어제의 혁신(A)은 오늘의 표준(O)이 되고, 내일의 필수(M)가 됩니다.<br>
                 주기적인 리서치로 살아있는 로드맵을 만들어보세요.
             </p>
+            <!-- [변경됨] 하단 버튼 추가 -->
+            <div class="mt-8 mb-8">
+                 <a href="kano_analyzer.html" class="inline-block bg-blue-600 text-white px-8 py-3 rounded-full font-bold hover:bg-blue-700 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-1">
+                    카노모델 분석해보기
+                </a>
+            </div>
             <div class="text-xs text-gray-600 border-t border-gray-800 pt-8">
                 &copy; 2024 Kano Model Interactive Guide. Powered by Google Gemini API.
             </div>
