@@ -549,22 +549,41 @@
             content.innerHTML = `<div class="flex items-center gap-2"><div class="spinner"></div><p>중요도와 오차범위를 고려하여 분석 중...</p></div>`;
             btn.disabled = true;
 
-            const summaryData = analysisResults.map(r => ({
-                feature: r.name,
-                category: r.category,
-                satisfaction: `${r.better.toFixed(2)} (±${r.seBetter.toFixed(2)})`,
-                dissatisfaction: `${r.worse.toFixed(2)} (±${r.seWorse.toFixed(2)})`,
-                importance: r.avgImp.toFixed(2)
-            }));
+            const summaryData = analysisResults.map(r => {
+                // Determine Quadrant based on Coefficients (matching the Chart)
+                let quadrant = "Indifferent";
+                if (r.better > 0.5) {
+                    if (r.worse < -0.5) quadrant = "One-dimensional (일원적)";
+                    else quadrant = "Attractive (매력적)";
+                } else {
+                    if (r.worse < -0.5) quadrant = "Must-be (당연적)";
+                    else quadrant = "Indifferent (무관심)";
+                }
+
+                return {
+                    feature: r.name,
+                    // Pass the Quadrant as the main category for AI consistency
+                    analysis_result: quadrant, 
+                    // Also pass detailed stats
+                    details: {
+                        satisfaction_better: `${r.better.toFixed(2)} (±${r.seBetter.toFixed(2)})`,
+                        dissatisfaction_worse: `${r.worse.toFixed(2)} (±${r.seWorse.toFixed(2)})`,
+                        importance: r.avgImp.toFixed(2),
+                        dominant_response_type: r.category // The count-based result
+                    }
+                };
+            });
 
             const prompt = `
-                Role: Senior PM. Analyze Kano results.
+                Role: Senior Product Manager Expert in Kano Model.
+                Task: Analyze the provided Kano analysis results and summarize the strategy in Korean.
                 Data: ${JSON.stringify(summaryData)}
                 
-                Focus:
-                1. High Importance + High Dissatisfaction -> Urgent Fix.
-                2. High Importance + High Satisfaction -> Promote.
-                3. Check Standard Error (±SE): If high (e.g. >0.15), mention that user opinions are divided.
+                Constraint:
+                1. STRICTLY use the 'analysis_result' field in the data for the category (Must-be, etc.). DO NOT hallucinate based on feature names.
+                2. If the 'analysis_result' is 'Indifferent', do NOT call it 'Attractive' even if the feature name (e.g., Dark Mode) sounds like it should be.
+                3. Focus on High Importance items.
+                4. Mention standard error if it's high (>0.15).
                 
                 Output: Strategic summary in Korean (Markdown).
             `;
