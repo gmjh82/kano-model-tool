@@ -33,9 +33,6 @@
         /* Loading Spinner */
         .spinner { border: 3px solid rgba(255,255,255,0.3); border-radius: 50%; border-top: 3px solid white; width: 20px; height: 20px; animation: spin 1s linear infinite; display: inline-block; vertical-align: middle; margin-right: 5px;}
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        
-        .ai-pulse { animation: pulse-blue 2s infinite; }
-        @keyframes pulse-blue { 0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); } 100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); } }
     </style>
 </head>
 <body class="bg-slate-50 min-h-screen flex flex-col">
@@ -43,17 +40,25 @@
     <!-- Header -->
     <header class="bg-white border-b border-gray-200 sticky top-0 z-50">
         <div class="container mx-auto px-6 py-4 flex justify-between items-center">
-            <div class="flex items-center gap-2">
-                <span class="bg-blue-600 text-white rounded p-1 font-black">K</span>
-                <h1 class="text-xl font-bold text-slate-800">Kano Analysis <span class="text-blue-600">Dashboard</span></h1>
+            <div class="flex items-center gap-4">
+                <!-- [추가됨] Back Button -->
+                <a href="index.html" class="text-slate-400 hover:text-blue-600 transition-colors flex items-center gap-1 text-sm font-medium pr-4 border-r border-slate-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+                    메인으로
+                </a>
+                <div class="flex items-center gap-2">
+                    <span class="bg-blue-600 text-white rounded p-1 font-black">K</span>
+                    <h1 class="text-xl font-bold text-slate-800">Kano Analysis <span class="text-blue-600">Dashboard</span></h1>
+                </div>
             </div>
             
             <div class="flex items-center gap-3">
-                <div class="relative group">
-                    <input type="password" id="api-key-input" placeholder="Gemini API Key 입력" class="border border-gray-300 rounded px-3 py-1 text-xs w-40 focus:w-64 transition-all outline-none focus:border-blue-500">
-                    <div class="absolute right-2 top-1.5 text-gray-400 group-hover:text-blue-500 cursor-help" title="Gemini 기능을 사용하려면 키가 필요합니다">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11.536 21H9l-.386-1.543-1.543-1.543H5.464L3.727 15.273A6 6 0 015 9a6 6 0 016-6 2 2 0 014 2z"></path></svg>
-                    </div>
+                <div class="relative group flex items-center gap-2">
+                    <!-- [수정됨] API Key Input with LocalStorage logic -->
+                    <input type="password" id="api-key-input" oninput="saveApiKey(this.value)" placeholder="Gemini API Key 입력" class="border border-gray-300 rounded px-3 py-1 text-xs w-40 focus:w-64 transition-all outline-none focus:border-blue-500">
+                    <button onclick="openApiKeyModal()" class="text-xs text-gray-400 underline hover:text-blue-600 cursor-pointer">
+                        키 발급 안내
+                    </button>
                 </div>
             </div>
         </div>
@@ -68,6 +73,7 @@
     </header>
 
     <main class="container mx-auto px-6 py-8 flex-grow">
+        <!-- (Step 1, 2, 3 Content remains same as previous, omitted for brevity, ensure you copy the full content from previous response or I can reproduce if needed. Assuming previous logic works.) -->
         
         <!-- STEP 1: Survey Design -->
         <div id="step-design" class="step-content active">
@@ -222,12 +228,10 @@
                 </div>
             </div>
         </div>
-
     </main>
 
-    <!-- Guide Modal -->
+    <!-- Guide Modal (Form) -->
     <div id="form-guide-modal" class="modal fixed inset-0 z-[100] flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm">
-        <!-- (Same Modal Content as previous) -->
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden transform scale-100 transition-transform">
             <div class="bg-amber-100 p-4 border-b border-amber-200 flex justify-between items-center">
                 <h3 class="text-amber-900 font-bold text-lg flex items-center gap-2">
@@ -275,6 +279,51 @@
         </div>
     </div>
 
+    <!-- API Key Guide Modal (New for 2nd page) -->
+    <div id="api-key-modal" class="modal fixed inset-0 z-[100] flex items-center justify-center bg-black bg-opacity-50">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden transform scale-100 transition-transform">
+            <div class="bg-blue-600 p-4 flex justify-between items-center">
+                <h3 class="text-white font-bold text-lg flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11.536 21H9l-.386-1.543-1.543-1.543H5.464L3.727 15.273A6 6 0 015 9a6 6 0 016-6 2 2 0 014 2z" /></svg>
+                    무료 Gemini API 키 발급 방법
+                </h3>
+                <button onclick="closeApiKeyModal()" class="text-white hover:bg-blue-700 rounded-full p-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            <div class="p-6 space-y-6">
+                <div class="flex items-start gap-3">
+                    <div class="bg-blue-100 text-blue-700 font-bold rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0">1</div>
+                    <div>
+                        <p class="font-bold text-gray-800 mb-1">Google AI Studio 접속</p>
+                        <a href="https://aistudio.google.com/app/apikey" target="_blank" class="inline-block mt-2 bg-gray-800 text-white text-xs px-3 py-1.5 rounded hover:bg-gray-700 transition-colors">
+                            사이트 바로가기 ↗
+                        </a>
+                    </div>
+                </div>
+                <div class="flex items-start gap-3">
+                    <div class="bg-blue-100 text-blue-700 font-bold rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0">2</div>
+                    <div>
+                        <p class="font-bold text-gray-800 mb-1">API 키 생성 후 복사</p>
+                        <p class="text-sm text-gray-600">'Create API key'를 눌러 키를 생성하고 복사합니다.</p>
+                    </div>
+                </div>
+                <div class="flex items-start gap-3">
+                    <div class="bg-blue-100 text-blue-700 font-bold rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0">3</div>
+                    <div>
+                        <p class="font-bold text-gray-800 mb-1">상단 입력창에 붙여넣기</p>
+                        <p class="text-sm text-gray-600">이 페이지 상단의 'Gemini API Key 입력' 칸에 붙여넣으세요.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-gray-50 p-4 flex justify-end">
+                <button onclick="closeApiKeyModal()" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-medium transition-colors">
+                    닫기
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Notification Toast -->
     <div id="toast" class="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-full shadow-lg transition-opacity opacity-0 pointer-events-none z-50">
         Message
@@ -282,13 +331,19 @@
 
     <script>
         // --- Global State ---
-        let features = []; // {id, name, desc}
-        let analysisResults = []; // Results
-        const apiKey = ""; // Managed by input field
+        let features = []; 
+        let analysisResults = []; 
 
-        // --- Helper: Get API Key ---
+        // --- Helper: Get API Key from LocalStorage or Input ---
         function getApiKey() {
-            const key = document.getElementById('api-key-input').value.trim();
+            // 1. Try input first
+            let key = document.getElementById('api-key-input').value.trim();
+            // 2. Try localStorage if input is empty
+            if (!key) {
+                key = localStorage.getItem('gemini_api_key') || "";
+                if(key) document.getElementById('api-key-input').value = key;
+            }
+            
             if(!key) {
                 showToast('⚠️ 상단에 Gemini API Key를 먼저 입력해주세요.');
                 document.getElementById('api-key-input').focus();
@@ -297,16 +352,20 @@
             return key;
         }
 
-        // --- Tab Logic ---
-        function switchTab(tabId) {
-            document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-            
-            document.getElementById(`step-${tabId}`).classList.add('active');
-            document.getElementById(`tab-${tabId}`).classList.add('active');
+        // --- Init: Load Key from Storage ---
+        window.addEventListener('load', () => {
+            const savedKey = localStorage.getItem('gemini_api_key');
+            if(savedKey) {
+                document.getElementById('api-key-input').value = savedKey;
+            }
+        });
+
+        // Save Key on Input
+        function saveApiKey(key) {
+            localStorage.setItem('gemini_api_key', key);
         }
 
-        // --- Modal Logic ---
+        // --- Modal Logic (Form Guide & API Key) ---
         function openFormGuide() {
             const modal = document.getElementById('form-guide-modal');
             modal.classList.remove('hidden');
@@ -317,7 +376,29 @@
             modal.classList.remove('active');
             setTimeout(() => modal.classList.add('hidden'), 200);
         }
-        document.getElementById('form-guide-modal').classList.add('hidden'); // Init hidden
+        document.getElementById('form-guide-modal').classList.add('hidden');
+
+        function openApiKeyModal() {
+            const modal = document.getElementById('api-key-modal');
+            modal.classList.remove('hidden');
+            setTimeout(() => modal.classList.add('active'), 10);
+        }
+        function closeApiKeyModal() {
+            const modal = document.getElementById('api-key-modal');
+            modal.classList.remove('active');
+            setTimeout(() => modal.classList.add('hidden'), 200);
+        }
+        document.getElementById('api-key-modal').classList.add('hidden');
+
+
+        // --- Tab Logic ---
+        function switchTab(tabId) {
+            document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            
+            document.getElementById(`step-${tabId}`).classList.add('active');
+            document.getElementById(`tab-${tabId}`).classList.add('active');
+        }
 
         // --- Step 1: Design Logic ---
         function addFeature(customName = null, customDesc = null) {
@@ -369,7 +450,6 @@
 
                 const data = await response.json();
                 
-                // --- Fix applied here: Check if candidates exist ---
                 if (!data.candidates || data.candidates.length === 0) {
                     throw new Error(data.error?.message || "AI가 응답을 생성하지 못했습니다. 잠시 후 다시 시도해주세요.");
                 }
@@ -562,7 +642,6 @@
 
                 const data = await response.json();
                 
-                // --- Fix applied here too: Check candidates ---
                 if (!data.candidates || data.candidates.length === 0) {
                     throw new Error(data.error?.message || "AI가 응답을 생성하지 못했습니다. 잠시 후 다시 시도해주세요.");
                 }
