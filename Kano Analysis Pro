@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kano 분석 대시보드 Pro (오차범위 포함)</title>
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.1.0"></script>
+    <!-- SheetJS (Excel/CSV Parsing) -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+    <!-- Markdown Parser -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+    <style>
+        body { font-family: 'Noto Sans KR', sans-serif; background-color: #f1f5f9; color: #334155; }
+        .step-content { display: none; }
+        .step-content.active { display: block; animation: fadeIn 0.4s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .tab-btn.active { border-bottom: 3px solid #0f172a; color: #0f172a; font-weight: 800; }
+        /* Video Responsive Helper */
+        .video-container { position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 0.5rem; margin-top: 0.5rem; }
+        .video-container iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+        
+        /* Modal Styles */
+        .modal { transition: opacity 0.2s ease-in-out; opacity: 0; pointer-events: none; }
+        .modal.active { opacity: 1; pointer-events: auto; }
+
+        /* Loading Spinner */
+        .spinner { border: 3px solid rgba(255,255,255,0.3); border-radius: 50%; border-top: 3px solid white; width: 20px; height: 20px; animation: spin 1s linear infinite; display: inline-block; vertical-align: middle; margin-right: 5px;}
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-slate-100 min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
+        <div class="container mx-auto px-6 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-4">
+                <a href="index.html" class="text-slate-400 hover:text-slate-800 transition-colors flex items-center gap-1 text-sm font-medium pr-4 border-r border-slate-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+                    메인으로
+                </a>
+                <div class="flex items-center gap-2">
+                    <span class="bg-slate-800 text-white rounded p-1 font-black px-2">PRO</span>
+                    <h1 class="text-xl font-bold text-slate-800">Kano Analysis <span class="text-slate-500">Dashboard</span></h1>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-3">
+                <div class="relative group flex items-center gap-2">
+                    <input type="password" id="api-key-input" oninput="saveApiKey(this.value)" placeholder="Gemini API Key 입력" class="border border-gray-300 rounded px-3 py-1 text-xs w-40 focus:w-64 transition-all outline-none focus:border-slate-800 bg-slate-50">
+                    <button onclick="openApiKeyModal()" class="text-xs text-gray-400 underline hover:text-slate-800 cursor-pointer">
+                        키 발급 안내
+                    </button>
+                </div>
+            </div>
+        </div>
+        <!-- Tabs -->
+        <div class="container mx-auto px-6 mt-2">
+            <div class="flex gap-8 border-b border-gray-200">
+                <button onclick="switchTab('design')" id="tab-design" class="tab-btn active pb-3 px-1 text-sm transition-colors hover:text-slate-800">1. 설문 설계</button>
+                <button onclick="switchTab('collect')" id="tab-collect" class="tab-btn pb-3 px-1 text-sm transition-colors hover:text-slate-800">2. 데이터 입력</button>
+                <button onclick="switchTab('analyze')" id="tab-analyze" class="tab-btn pb-3 px-1 text-sm transition-colors hover:text-slate-800">3. 정밀 분석 (통계)</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-6 py-8 flex-grow">
+        
+        <!-- STEP 1: Survey Design -->
+        <div id="step-design" class="step-content active">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Input Form -->
+                <div class="lg:col-span-1 space-y-6">
+                    <!-- Manual Input -->
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 h-fit">
+                        <h3 class="text-lg font-bold mb-4 flex items-center gap-2 text-slate-800">
+                            <svg class="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                            기능 직접 추가
+                        </h3>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 mb-1">기능/서비스 명</label>
+                                <input type="text" id="feat-name" placeholder="예: 다크모드" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-slate-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 mb-1">설명 (이미지/유튜브 URL 가능)</label>
+                                <input type="text" id="feat-desc" placeholder="설명글 또는 https://..." class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-slate-500 outline-none">
+                            </div>
+                            <button onclick="addFeature()" class="w-full bg-slate-800 text-white py-2 rounded font-bold hover:bg-slate-900 transition-all">리스트에 추가</button>
+                        </div>
+                    </div>
+
+                    <!-- AI Generator -->
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 h-fit relative overflow-hidden">
+                        <div class="absolute top-0 right-0 -mt-2 -mr-2 w-16 h-16 bg-slate-200 rounded-full opacity-50 blur-xl"></div>
+                        <h3 class="text-lg font-bold mb-2 flex items-center gap-2 text-slate-800">
+                            <span>✨</span> AI 아이디어 제안
+                        </h3>
+                        <p class="text-xs text-slate-500 mb-4">서비스 주제를 입력하면 분석할 기능 후보를 자동으로 생성합니다.</p>
+                        
+                        <div class="space-y-3">
+                            <input type="text" id="ai-product-context" placeholder="예: 20대를 위한 짠테크 가계부 앱" class="w-full p-2 border border-slate-200 rounded focus:ring-2 focus:ring-slate-500 outline-none bg-slate-50">
+                            <button onclick="generateFeaturesWithAI()" id="btn-gen-ai" class="w-full bg-white border border-slate-300 text-slate-700 py-2 rounded font-bold hover:bg-slate-50 transition-all flex justify-center items-center gap-2 shadow-sm">
+                                <span>아이디어 생성하기</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- List & Preview -->
+                <div class="lg:col-span-2">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-bold text-slate-700">등록된 기능 목록 (<span id="feat-count">0</span>)</h3>
+                        <div class="flex gap-2">
+                            <button onclick="openFormGuide()" class="bg-amber-100 border border-amber-200 text-amber-800 px-4 py-2 rounded text-sm font-bold hover:bg-amber-200 flex items-center gap-2 shadow-sm">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                설문 가이드
+                            </button>
+                            <button onclick="copyForGoogleForm()" class="bg-white border border-gray-300 text-slate-700 px-4 py-2 rounded text-sm font-bold hover:bg-gray-50 flex items-center gap-2 shadow-sm">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+                                질문 텍스트 복사
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div id="feature-list" class="space-y-4">
+                        <div class="text-center py-12 text-gray-400 border-2 border-dashed border-gray-300 rounded-xl bg-slate-50">
+                            아직 등록된 기능이 없습니다.<br>직접 입력하거나 AI에게 아이디어를 요청해보세요.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- STEP 2: Data Collection -->
+        <div id="step-collect" class="step-content">
+            <div class="max-w-4xl mx-auto">
+                <div class="bg-white p-8 rounded-xl shadow-sm border border-gray-200 mb-8">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-xl font-bold text-slate-800">데이터 가져오기</h3>
+                        <span class="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded font-bold">3열 데이터 (긍정/부정/중요도)</span>
+                    </div>
+                    
+                    <div class="mb-6 p-4 bg-slate-50 rounded border border-slate-200 text-sm text-slate-600">
+                        <p class="mb-2 font-bold">📋 입력 형식 안내</p>
+                        <ul class="list-disc list-inside space-y-1 text-xs">
+                            <li>각 기능마다 <strong>3개의 열(Column)</strong>이 순서대로 있어야 합니다: <strong>[긍정응답] [부정응답] [중요도(1~5)]</strong></li>
+                            <li>엑셀이나 스프레드시트에서 데이터를 복사(Ctrl+C)해서 아래에 붙여넣으세요(Ctrl+V).</li>
+                            <li>텍스트(좋다, 싫다 등)와 숫자(1~5) 모두 자동 인식됩니다.</li>
+                        </ul>
+                    </div>
+
+                    <textarea id="data-input" class="w-full h-48 p-4 bg-white border border-gray-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-slate-500 outline-none shadow-inner" placeholder="여기에 데이터를 붙여넣으세요..."></textarea>
+                    
+                    <div class="flex gap-4 mt-4">
+                        <button onclick="processData()" class="flex-grow bg-slate-800 text-white py-3 rounded-lg font-bold hover:bg-slate-900 transition-all shadow-md flex justify-center items-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                            데이터 분석 시작
+                        </button>
+                        <button onclick="loadSampleData()" class="px-6 py-3 border border-gray-300 text-gray-600 rounded-lg font-bold hover:bg-gray-50 transition-colors">
+                            샘플 로드
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- STEP 3: Analysis Result -->
+        <div id="step-analyze" class="step-content">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+                <!-- Bubble Chart with Error Bars -->
+                <div class="lg:col-span-2 space-y-6">
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <h4 class="text-lg font-bold text-slate-800">전략 분석 맵 (Statistic View)</h4>
+                                <p class="text-xs text-gray-500 mt-1">
+                                    • 원 크기: 중요도 (클수록 중요)<br>
+                                    • 십자선(Crosshair): <strong>표준 오차(Standard Error)</strong> 범위. 선이 길수록 응답 편차가 큽니다.
+                                </p>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-xs font-bold text-slate-400">Better(만족) vs Worse(불만족)</span>
+                            </div>
+                        </div>
+                        <div class="relative h-[500px] w-full">
+                            <canvas id="resultChart"></canvas>
+                        </div>
+                        <div class="mt-4 flex justify-center gap-4 text-xs text-gray-500 flex-wrap border-t border-gray-100 pt-4">
+                            <div class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-amber-500 opacity-80"></span>Must-be (필수)</div>
+                            <div class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-blue-500 opacity-80"></span>One-dimensional (일원)</div>
+                            <div class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-rose-500 opacity-80"></span>Attractive (매력)</div>
+                            <div class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-gray-400 opacity-80"></span>Indifferent (무관심)</div>
+                        </div>
+                    </div>
+
+                    <!-- AI Analysis Result Area -->
+                    <div id="ai-analysis-container" class="bg-slate-800 text-white p-6 rounded-xl shadow-lg relative overflow-hidden hidden">
+                        <div class="flex justify-between items-start mb-4 relative z-10">
+                            <h4 class="text-lg font-bold flex items-center gap-2"><span>✨</span> AI 통계 분석 리포트</h4>
+                            <button onclick="analyzeWithAI()" id="btn-analyze-ai" class="bg-white/10 hover:bg-white/20 border border-white/20 text-xs px-3 py-1.5 rounded transition-all">
+                                리포트 재생성
+                            </button>
+                        </div>
+                        <div id="ai-analysis-content" class="text-sm text-slate-300 leading-relaxed space-y-2 markdown-body">
+                            <p class="animate-pulse flex items-center gap-2"><span class="spinner"></span> 오차 범위와 중요도를 포함하여 데이터를 정밀 분석 중입니다...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Result Table -->
+                <div class="lg:col-span-1 bg-white p-0 rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col h-[650px]">
+                    <div class="p-4 border-b border-gray-100 bg-slate-50">
+                        <h4 class="text-lg font-bold text-slate-800">상세 데이터</h4>
+                    </div>
+                    <div class="overflow-y-auto flex-grow">
+                        <table class="w-full text-xs text-left">
+                            <thead class="bg-white text-gray-500 font-medium border-b sticky top-0 z-10 shadow-sm">
+                                <tr>
+                                    <th class="p-3 bg-slate-50">기능명</th>
+                                    <th class="p-3 bg-slate-50">유형</th>
+                                    <th class="p-3 bg-slate-50 text-right">Better<br><span class="text-[10px] font-normal">(±SE)</span></th>
+                                    <th class="p-3 bg-slate-50 text-right">Worse<br><span class="text-[10px] font-normal">(±SE)</span></th>
+                                    <th class="p-3 bg-slate-50 text-right text-purple-700">Imp.</th>
+                                </tr>
+                            </thead>
+                            <tbody id="result-table-body" class="divide-y divide-gray-100 bg-white">
+                                <!-- Results here -->
+                                <tr><td colspan="5" class="p-8 text-center text-gray-400">데이터가 없습니다.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="p-4 border-t border-gray-100 bg-white">
+                        <button onclick="analyzeWithAI()" class="w-full bg-gradient-to-r from-slate-700 to-slate-800 text-white py-3 rounded-lg font-bold hover:shadow-lg transition-all flex justify-center items-center gap-2">
+                            <span>✨ AI 통계 리포트 생성</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Guide Modal (Form) -->
+    <div id="form-guide-modal" class="modal fixed inset-0 z-[100] flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden transform scale-100 transition-transform">
+            <div class="bg-slate-800 p-4 flex justify-between items-center">
+                <h3 class="text-white font-bold text-lg flex items-center gap-2">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+                    [Pro] 설문 작성 가이드
+                </h3>
+                <button onclick="closeFormGuide()" class="text-slate-400 hover:text-white rounded-full p-1">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div class="p-6 space-y-6 text-slate-700 max-h-[70vh] overflow-y-auto">
+                <div class="space-y-2">
+                    <h4 class="font-bold text-slate-800 text-lg">1. 질문 구조 (3단계)</h4>
+                    <p class="text-sm">각 기능마다 <strong>긍정 질문 → 부정 질문 → 중요도 질문</strong> 순서로 배치해야 합니다.</p>
+                </div>
+                <div class="space-y-4">
+                    <h4 class="font-bold text-slate-800 text-lg">2. 선택지 구성</h4>
+                    <div class="bg-blue-50 p-4 rounded border border-blue-100">
+                        <p class="font-bold text-blue-800 text-sm mb-1">Q1. 긍정 & Q2. 부정 (기존과 동일)</p>
+                        <p class="text-xs text-gray-500 mb-2">1.좋다 ~ 5.싫다 (5점 척도)</p>
+                    </div>
+                    <div class="bg-purple-50 p-4 rounded border border-purple-100">
+                        <p class="font-bold text-purple-800 text-sm mb-2">🟣 Q3. (중요도) 이 기능은 얼마나 중요합니까?</p>
+                        <ul class="text-xs font-mono text-gray-700 space-y-1">
+                            <li>1. 전혀 중요하지 않다.</li>
+                            <li>2. 중요하지 않다.</li>
+                            <li>3. 보통이다.</li>
+                            <li>4. 중요하다.</li>
+                            <li>5. 매우 중요하다.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-gray-50 p-4 flex justify-end">
+                <button onclick="closeFormGuide()" class="px-5 py-2.5 bg-slate-800 text-white rounded-lg hover:bg-slate-700 font-bold transition-colors">
+                    확인했습니다
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- API Key Guide Modal -->
+    <div id="api-key-modal" class="modal fixed inset-0 z-[100] flex items-center justify-center bg-black bg-opacity-50">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden transform scale-100 transition-transform">
+            <div class="bg-slate-800 p-4 flex justify-between items-center">
+                <h3 class="text-white font-bold text-lg flex items-center gap-2">Gemini API 키 설정</h3>
+                <button onclick="closeApiKeyModal()" class="text-slate-400 hover:text-white rounded-full p-1"><svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+            </div>
+            <div class="p-6">
+                <p class="text-sm text-gray-600 mb-4">Google AI Studio에서 무료 API 키를 발급받아 입력해주세요.</p>
+                <a href="https://aistudio.google.com/app/apikey" target="_blank" class="block text-center bg-gray-100 hover:bg-gray-200 py-3 rounded text-slate-800 font-bold text-sm">키 발급받으러 가기 ↗</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-full shadow-lg transition-opacity opacity-0 pointer-events-none z-50">Message</div>
+
+    <script>
+        // --- Global State ---
+        let features = []; 
+        let analysisResults = []; 
+
+        // --- Helper: API Key ---
+        function getApiKey() {
+            let key = document.getElementById('api-key-input').value.trim();
+            if (!key) {
+                key = localStorage.getItem('gemini_api_key') || "";
+                if(key) document.getElementById('api-key-input').value = key;
+            }
+            if(!key) {
+                showToast('⚠️ 상단에 Gemini API Key를 먼저 입력해주세요.');
+                document.getElementById('api-key-input').focus();
+                return null;
+            }
+            return key;
+        }
+
+        window.addEventListener('load', () => {
+            const savedKey = localStorage.getItem('gemini_api_key');
+            if(savedKey) document.getElementById('api-key-input').value = savedKey;
+        });
+        function saveApiKey(key) { localStorage.setItem('gemini_api_key', key); }
+
+        // --- Modal & Tab Utils ---
+        function switchTab(tabId) {
+            document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(`step-${tabId}`).classList.add('active');
+            document.getElementById(`tab-${tabId}`).classList.add('active');
+        }
+        function openFormGuide() { document.getElementById('form-guide-modal').classList.remove('hidden'); setTimeout(() => document.getElementById('form-guide-modal').classList.add('active'), 10); }
+        function closeFormGuide() { document.getElementById('form-guide-modal').classList.remove('active'); setTimeout(() => document.getElementById('form-guide-modal').classList.add('hidden'), 200); }
+        function openApiKeyModal() { document.getElementById('api-key-modal').classList.remove('hidden'); setTimeout(() => document.getElementById('api-key-modal').classList.add('active'), 10); }
+        function closeApiKeyModal() { document.getElementById('api-key-modal').classList.remove('active'); setTimeout(() => document.getElementById('api-key-modal').classList.add('hidden'), 200); }
+        document.getElementById('form-guide-modal').classList.add('hidden');
+        document.getElementById('api-key-modal').classList.add('hidden');
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.classList.remove('opacity-0');
+            setTimeout(() => toast.classList.add('opacity-0'), 3000);
+        }
+
+        // --- Step 1: Design Logic ---
+        function addFeature(customName = null, customDesc = null) {
+            const name = customName || document.getElementById('feat-name').value.trim();
+            const desc = customDesc || document.getElementById('feat-desc').value.trim();
+            if(!name) { showToast('기능 이름을 입력해주세요.'); return; }
+            if(features.length >= 10) { showToast('최대 10개까지만 등록 가능합니다.'); return; }
+            const feature = { id: Date.now() + Math.random(), name, desc };
+            features.push(feature);
+            if(!customName) { document.getElementById('feat-name').value = ''; document.getElementById('feat-desc').value = ''; }
+            renderFeatures();
+        }
+
+        async function generateFeaturesWithAI() {
+            const key = getApiKey(); if (!key) return;
+            const context = document.getElementById('ai-product-context').value.trim();
+            if (!context) { showToast('서비스 주제를 입력해주세요.'); return; }
+            const btn = document.getElementById('btn-gen-ai');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = `<div class="spinner"></div> 생성 중...`; btn.disabled = true;
+            const prompt = `Role: Senior PM. Task: Suggest 5 distinct features for: "${context}". Output: JSON Array of objects with 'name' and 'desc'. Return ONLY JSON. Language: Korean.`;
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${key}`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                });
+                const data = await response.json();
+                if (!data.candidates || data.candidates.length === 0) throw new Error("AI 응답 오류");
+                let text = data.candidates[0].content.parts[0].text.replace(/```json/g, '').replace(/```/g, '').trim();
+                const newFeatures = JSON.parse(text);
+                features = []; newFeatures.forEach(f => addFeature(f.name, f.desc));
+                showToast('✨ 5가지 아이디어가 생성되었습니다!');
+            } catch (error) { console.error(error); showToast('AI 오류: ' + error.message); } 
+            finally { btn.innerHTML = originalText; btn.disabled = false; }
+        }
+
+        function renderMediaOrText(content) {
+            if (!content) return '';
+            const ytMatch = content.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i);
+            if (ytMatch && ytMatch[1]) return `<div class="video-container bg-black"><iframe src="https://www.youtube.com/embed/${ytMatch[1]}" frameborder="0" allowfullscreen></iframe></div>`;
+            if (/\.(jpeg|jpg|gif|png|webp|svg)($|\?)/i.test(content) || (content.startsWith('http') && content.includes('images'))) return `<img src="${content}" class="w-full h-40 object-cover rounded mt-2 border border-gray-100">`;
+            return `<p class="text-sm text-gray-500 mt-1 whitespace-pre-wrap">${content}</p>`;
+        }
+
+        function removeFeature(id) { features = features.filter(f => f.id !== id); renderFeatures(); }
+        
+        function renderFeatures() {
+            const listEl = document.getElementById('feature-list');
+            document.getElementById('feat-count').innerText = features.length;
+            if(features.length === 0) { listEl.innerHTML = `<div class="text-center py-12 text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">아직 등록된 기능이 없습니다.<br>직접 입력하거나 AI에게 아이디어를 요청해보세요.</div>`; return; }
+            listEl.innerHTML = features.map((f, idx) => `
+                <div class="bg-white p-4 rounded-lg border border-gray-200 flex justify-between items-start group hover:shadow-md transition-all">
+                    <div class="w-full mr-4">
+                        <div class="flex items-center gap-2">
+                            <span class="bg-slate-100 text-slate-600 text-xs px-2 py-0.5 rounded font-bold">#${idx + 1}</span>
+                            <h4 class="font-bold text-slate-800">${f.name}</h4>
+                        </div>
+                        ${renderMediaOrText(f.desc)}
+                        <div class="mt-3 text-xs text-gray-400 bg-gray-50 p-2 rounded hidden group-hover:block transition-all">
+                            <p>Q1(긍정) / Q2(부정) / <strong>Q3(중요도)</strong> 자동 생성됨</p>
+                        </div>
+                    </div>
+                    <button onclick="removeFeature(${f.id})" class="text-gray-400 hover:text-red-500 p-1 flex-shrink-0"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
+                </div>
+            `).join('');
+        }
+
+        function copyForGoogleForm() {
+            if(features.length === 0) { showToast('복사할 기능이 없습니다.'); return; }
+            let text = "=== [필독] 설문 작성 가이드 (중요도 포함) ===\n질문 유형: '객관식 질문' / 필수 체크 / 기능당 3개 질문\n=====================================\n\n";
+            features.forEach((f, i) => {
+                text += `[섹션 ${i+1}: ${f.name}]\n`;
+                text += f.desc.startsWith('http') ? `참고 자료: ${f.desc}\n\n` : `설명: ${f.desc}\n\n`;
+                text += `Q1. (긍정) ${f.name} 기능이 제공된다면 어떠시겠습니까?\n[선택지]\n1. 좋다.\n2. 당연하다.\n3. 중립이다.\n4. 있어도 상관없다.\n5. 마음에 안 든다.\n\n`;
+                text += `Q2. (부정) ${f.name} 기능이 제공되지 않는다면 어떠시겠습니까?\n[선택지]\n1. 없는 게 나을 것 같다.\n2. 당연히 없어도 된다.\n3. 중립이다.\n4. 아쉽지만 없어도 괜찮다.\n5. 없으면 안된다.\n\n`;
+                text += `Q3. (중요도) ${f.name} 기능은 귀하에게 얼마나 중요합니까?\n[선택지]\n1. 전혀 중요하지 않다.\n2. 중요하지 않다.\n3. 보통이다.\n4. 중요하다.\n5. 매우 중요하다.\n\n--------------------------------\n`;
+            });
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.position = "fixed"; textArea.style.left = "0"; textArea.style.top = "0";
+            document.body.appendChild(textArea); textArea.focus(); textArea.select();
+            try { document.execCommand('copy'); showToast('3단계 질문(긍정/부정/중요도) 텍스트가 복사되었습니다.'); } catch (err) { showToast('복사 실패'); }
+            document.body.removeChild(textArea);
+        }
+
+        // --- Step 2: Data Processing (Calculates Standard Error) ---
+        const kanoMap = [ ['Q', 'A', 'A', 'A', 'O'], ['R', 'I', 'I', 'I', 'M'], ['R', 'I', 'I', 'I', 'M'], ['R', 'I', 'I', 'I', 'M'], ['R', 'R', 'R', 'R', 'Q'] ];
+        
+        function mapScore(text) {
+            const t = String(text).trim();
+            if(t.includes('1') || t.includes('좋다') || t.includes('없는 게') || t.includes('전혀')) return 0;
+            if(t.includes('2') || t.includes('당연') || t.includes('중요하지')) return 1;
+            if(t.includes('3') || t.includes('중립') || t.includes('상관') || t.includes('보통')) return 2;
+            if(t.includes('4') || t.includes('참을') || t.includes('괜찮') || t.includes('중요하다')) return 3;
+            if(t.includes('5') || t.includes('마음에 안') || t.includes('없으면') || t.includes('매우')) return 4;
+            return 2; 
+        }
+
+        function loadSampleData() {
+            if(features.length === 0) { addFeature('자동 저장', '입력 중 내용 자동 저장'); addFeature('다크 모드', '눈이 편안한 어두운 화면'); }
+            let csv = "";
+            for(let i=0; i<20; i++) {
+                let row = [];
+                features.forEach(() => { 
+                    row.push(Math.floor(Math.random()*5)+1); // Pos
+                    row.push(Math.floor(Math.random()*5)+1); // Neg
+                    row.push(Math.floor(Math.random()*5)+1); // Imp
+                });
+                csv += row.join(',') + "\n";
+            }
+            document.getElementById('data-input').value = csv;
+            showToast('샘플 데이터 (3열 형식) 로드 완료');
+        }
+
+        function processData() {
+            const rawText = document.getElementById('data-input').value.trim();
+            if(!rawText) { showToast('데이터를 입력해주세요.'); return; }
+            if(features.length === 0) { showToast('기능 정의가 필요합니다.'); switchTab('design'); return; }
+
+            const rows = rawText.split('\n');
+            const results = features.map(f => ({ 
+                id: f.id, name: f.name, 
+                counts: { A:0, O:0, M:0, I:0, R:0, Q:0 }, 
+                impSum: 0, total: 0,
+                // For SD calc
+                betterCounts: 0, worseCounts: 0 
+            }));
+
+            rows.forEach(row => {
+                if(!row.trim()) return;
+                const cols = row.split(/,|\t/);
+                features.forEach((feat, idx) => {
+                    const colIdx = idx * 3;
+                    if(cols.length <= colIdx + 2) return;
+
+                    const func = mapScore(cols[colIdx]);
+                    const dys = mapScore(cols[colIdx+1]);
+                    const imp = mapScore(cols[colIdx+2]) + 1;
+
+                    const cat = kanoMap[func][dys];
+                    results[idx].counts[cat]++;
+                    results[idx].impSum += imp;
+                    results[idx].total++;
+                    
+                    // Track for SE calculation
+                    if(['A','O'].includes(cat)) results[idx].betterCounts++;
+                    if(['O','M'].includes(cat)) results[idx].worseCounts++;
+                });
+            });
+
+            analysisResults = results.map(res => {
+                const { A, O, M, I, Q, R } = res.counts;
+                const totalValid = A + O + M + I; // Denominator usually excludes Q,R
+                // But for robust SE, we use total responses or total valid? Let's use total valid.
+                
+                const pBetter = totalValid ? (res.betterCounts / totalValid) : 0;
+                const pWorse = totalValid ? (res.worseCounts / totalValid) : 0;
+                
+                // Standard Error of Proportion: sqrt(p(1-p)/n)
+                const seBetter = totalValid ? Math.sqrt((pBetter * (1 - pBetter)) / totalValid) : 0;
+                const seWorse = totalValid ? Math.sqrt((pWorse * (1 - pWorse)) / totalValid) : 0;
+
+                const avgImp = res.total ? (res.impSum / res.total) : 0;
+                
+                // Find dominant category
+                let maxCat = 'I'; let maxVal = -1;
+                for(const [cat, val] of Object.entries(res.counts)) { if(cat !== 'Q' && cat !== 'R' && val > maxVal) { maxVal = val; maxCat = cat; } }
+                
+                return { 
+                    ...res, 
+                    better: pBetter, 
+                    worse: -pWorse, // Plot as negative
+                    seBetter: seBetter,
+                    seWorse: seWorse, // This is positive
+                    avgImp, 
+                    category: maxCat 
+                };
+            });
+
+            renderCharts();
+            switchTab('analyze');
+        }
+
+        // --- AI Analysis ---
+        async function analyzeWithAI() {
+            const key = getApiKey(); if (!key) return;
+            if (analysisResults.length === 0) { showToast('분석할 데이터가 없습니다.'); return; }
+
+            const container = document.getElementById('ai-analysis-container');
+            const content = document.getElementById('ai-analysis-content');
+            const btn = document.getElementById('btn-analyze-ai');
+            
+            container.classList.remove('hidden');
+            content.innerHTML = `<div class="flex items-center gap-2"><div class="spinner"></div><p>중요도와 오차범위를 고려하여 분석 중...</p></div>`;
+            btn.disabled = true;
+
+            const summaryData = analysisResults.map(r => ({
+                feature: r.name,
+                category: r.category,
+                satisfaction: `${r.better.toFixed(2)} (±${r.seBetter.toFixed(2)})`,
+                dissatisfaction: `${r.worse.toFixed(2)} (±${r.seWorse.toFixed(2)})`,
+                importance: r.avgImp.toFixed(2)
+            }));
+
+            const prompt = `
+                Role: Senior PM. Analyze Kano results.
+                Data: ${JSON.stringify(summaryData)}
+                
+                Focus:
+                1. High Importance + High Dissatisfaction -> Urgent Fix.
+                2. High Importance + High Satisfaction -> Promote.
+                3. Check Standard Error (±SE): If high (e.g. >0.15), mention that user opinions are divided.
+                
+                Output: Strategic summary in Korean (Markdown).
+            `;
+
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${key}`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                });
+                const data = await response.json();
+                if (!data.candidates || data.candidates.length === 0) throw new Error("AI 응답 없음");
+                content.innerHTML = marked.parse(data.candidates[0].content.parts[0].text);
+            } catch (error) { console.error(error); content.innerText = '오류: ' + error.message; } 
+            finally { btn.disabled = false; }
+        }
+
+        // --- Custom Error Bar Plugin ---
+        const errorBarPlugin = {
+            id: 'errorBar',
+            afterDatasetsDraw(chart, args, options) {
+                const { ctx } = chart;
+                chart.data.datasets.forEach((dataset, i) => {
+                    const meta = chart.getDatasetMeta(i);
+                    meta.data.forEach((element, index) => {
+                        const data = dataset.data[index];
+                        // If no SE data, skip
+                        if(data.seX === undefined || data.seY === undefined) return;
+
+                        const xAxis = chart.scales.x;
+                        const yAxis = chart.scales.y;
+                        
+                        // Current Point Coordinates
+                        const x = xAxis.getPixelForValue(data.x);
+                        const y = yAxis.getPixelForValue(data.y);
+                        
+                        // Error Bar Ends
+                        // X axis is 'Worse' (Negative). SE is +/-. 
+                        const xMin = xAxis.getPixelForValue(data.x - data.seX);
+                        const xMax = xAxis.getPixelForValue(data.x + data.seX);
+                        const yMin = yAxis.getPixelForValue(data.y - data.seY);
+                        const yMax = yAxis.getPixelForValue(data.y + data.seY);
+
+                        ctx.save();
+                        ctx.strokeStyle = 'rgba(100, 116, 139, 0.6)'; // Slate-500 equivalent
+                        ctx.lineWidth = 1.5;
+                        
+                        // Horizontal Line (Worse Error)
+                        ctx.beginPath();
+                        ctx.moveTo(xMin, y);
+                        ctx.lineTo(xMax, y);
+                        ctx.stroke();
+                        
+                        // Vertical Line (Better Error)
+                        ctx.beginPath();
+                        ctx.moveTo(x, yMin);
+                        ctx.lineTo(x, yMax);
+                        ctx.stroke();
+                        
+                        // Draw Caps (Tips)
+                        const capSize = 4;
+                        
+                        // H-Cap Left
+                        ctx.beginPath(); ctx.moveTo(xMin, y - capSize); ctx.lineTo(xMin, y + capSize); ctx.stroke();
+                        // H-Cap Right
+                        ctx.beginPath(); ctx.moveTo(xMax, y - capSize); ctx.lineTo(xMax, y + capSize); ctx.stroke();
+                        // V-Cap Top
+                        ctx.beginPath(); ctx.moveTo(x - capSize, yMax); ctx.lineTo(x + capSize, yMax); ctx.stroke();
+                        // V-Cap Bottom
+                        ctx.beginPath(); ctx.moveTo(x - capSize, yMin); ctx.lineTo(x + capSize, yMin); ctx.stroke();
+
+                        ctx.restore();
+                    });
+                });
+            }
+        };
+
+        // --- Visualization ---
+        let resultChartInstance = null;
+        function renderCharts() {
+            // Register Plugin
+            Chart.register(errorBarPlugin);
+
+            // Table
+            const tbody = document.getElementById('result-table-body');
+            tbody.innerHTML = analysisResults.map(res => {
+                const catMap = { 'M':'Must-be', 'O':'One-dimensional', 'A':'Attractive', 'I':'Indifferent', 'R':'Reverse', 'Q':'Quest.' };
+                const colorMap = { 'M':'text-amber-600', 'O':'text-blue-600', 'A':'text-rose-600', 'I':'text-gray-500', 'R':'text-red-600', 'Q':'text-gray-400' };
+                const impStyle = res.avgImp >= 4.0 ? 'font-bold text-purple-700 bg-purple-50' : 'text-gray-600';
+                return `
+                    <tr class="hover:bg-slate-50 transition-colors border-b border-gray-50">
+                        <td class="p-3 font-medium text-slate-700">${res.name}</td>
+                        <td class="p-3 font-bold ${colorMap[res.category]}">${catMap[res.category]}</td>
+                        <td class="p-3 text-right text-blue-600">
+                            ${res.better.toFixed(2)} 
+                            <span class="text-[10px] text-gray-400 block">±${res.seBetter.toFixed(2)}</span>
+                        </td>
+                        <td class="p-3 text-right text-amber-600">
+                            ${res.worse.toFixed(2)}
+                            <span class="text-[10px] text-gray-400 block">±${res.seWorse.toFixed(2)}</span>
+                        </td>
+                        <td class="p-3 text-right ${impStyle}">${res.avgImp.toFixed(2)}</td>
+                    </tr>`;
+            }).join('');
+
+            // Chart
+            const ctx = document.getElementById('resultChart').getContext('2d');
+            if(resultChartInstance) resultChartInstance.destroy();
+
+            const dataPoints = analysisResults.map(res => ({
+                x: res.worse,
+                y: res.better,
+                r: res.avgImp * 6, // Radius by Importance
+                // Custom props for plugin
+                seX: res.seWorse,
+                seY: res.seBetter,
+                label: res.name,
+                category: res.category,
+                imp: res.avgImp.toFixed(2)
+            }));
+
+            resultChartInstance = new Chart(ctx, {
+                type: 'bubble',
+                data: {
+                    datasets: [{
+                        label: 'Features',
+                        data: dataPoints,
+                        backgroundColor: (ctx) => {
+                            const cat = ctx.raw?.category;
+                            if(cat === 'M') return 'rgba(245, 158, 11, 0.7)';
+                            if(cat === 'O') return 'rgba(37, 99, 235, 0.7)';
+                            if(cat === 'A') return 'rgba(244, 63, 94, 0.7)';
+                            return 'rgba(156, 163, 175, 0.7)';
+                        },
+                        borderColor: 'white',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    scales: {
+                        x: { 
+                            title: { display: true, text: '불만족 계수 (Worse)', font:{weight:'bold'} }, 
+                            min: -1, max: 0, 
+                            grid: { color: '#e2e8f0' } 
+                        },
+                        y: { 
+                            title: { display: true, text: '만족 계수 (Better)', font:{weight:'bold'} }, 
+                            min: 0, max: 1, 
+                            grid: { color: '#e2e8f0' } 
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: (ctx) => `${ctx.raw.label} (${ctx.raw.category})`,
+                                afterLabel: (ctx) => {
+                                    const r = ctx.raw;
+                                    return [
+                                        `Imp: ${r.imp}`,
+                                        `Better: ${r.y.toFixed(2)} (±${r.seY.toFixed(2)})`,
+                                        `Worse: ${r.x.toFixed(2)} (±${r.seX.toFixed(2)})`
+                                    ];
+                                }
+                            }
+                        },
+                        annotation: { annotations: {
+                            lineH: { type: 'line', yMin: 0.5, yMax: 0.5, borderColor: 'rgba(0,0,0,0.1)', borderWidth: 2, borderDash: [6,6] },
+                            lineV: { type: 'line', xMin: -0.5, xMax: -0.5, borderColor: 'rgba(0,0,0,0.1)', borderWidth: 2, borderDash: [6,6] },
+                            labelM: { type: 'label', xValue: -0.9, yValue: 0.1, content: 'Must-be', color: 'rgba(245, 158, 11, 0.3)', font:{size:16, weight:'bold'} },
+                            labelO: { type: 'label', xValue: -0.9, yValue: 0.9, content: 'One-dimensional', color: 'rgba(37, 99, 235, 0.3)', font:{size:16, weight:'bold'} },
+                            labelA: { type: 'label', xValue: -0.1, yValue: 0.9, content: 'Attractive', color: 'rgba(244, 63, 94, 0.3)', font:{size:16, weight:'bold'} },
+                            labelI: { type: 'label', xValue: -0.1, yValue: 0.1, content: 'Indifferent', color: 'rgba(156, 163, 175, 0.3)', font:{size:16, weight:'bold'} }
+                        }}
+                    }
+                }
+            });
+        }
+
+        // --- Toast Utils ---
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.classList.remove('opacity-0');
+            setTimeout(() => toast.classList.add('opacity-0'), 3000);
+        }
+    </script>
+</body>
+</html>
